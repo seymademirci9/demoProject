@@ -1,0 +1,49 @@
+pipeline{
+    agent any
+    tools {
+        maven 'maven-3.8.6'
+    }
+    environment {
+        
+		PROJECT_NAME="DemoApplication"
+		
+
+        DOCKER_URL="docker.io/seymademirci9/docker-spring-boot:5000"
+		PROJECT_NEXUS_TAG="seymademirci9/docker-spring-boot"
+		
+    }
+    stages{
+
+        
+        stage('Build'){
+            steps{
+                echo "--------------------Build started--------------------"
+                sh 'mvn clean package -X'
+            }
+        }
+        stage('Docker Image Build'){
+            steps{
+                echo "------------------Docker Image Build started------------------"
+                  sh "docker build . -t docker-spring-boot:v1.1"
+            }
+        }
+        stage('Docker Image Push'){
+            steps{
+				withCredentials([usernamePassword(credentialsId: 'dockerLogin', passwordVariable: 'password', usernameVariable: 'dockerLogin')]) {
+					sh "docker login ${DOCKER_URL} -u seymademirci9 -p ${password}"
+				}
+				sh "docker push seymademirci9/docker-spring-boot:v1.1"
+				
+            }
+        }
+        stage('Apply Kubernetes files') {
+            steps{
+                script{
+                kubernetesDeploy(configs: "deploy.yaml", kubeconfigId: "kubernetesDeploy")
+                
+                }
+            }
+        }
+        
+    }
+}
